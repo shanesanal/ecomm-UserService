@@ -5,5 +5,5 @@ import lombok.Data;
 
 @Data
 public class LogoutRequestDto {
-    private Token token;
+    private String token;
 }

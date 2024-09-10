@@ -1,15 +1,15 @@
 package com.ecommerce.userservice.controllers;
 
 import com.ecommerce.userservice.dtos.*;
+import com.ecommerce.userservice.dtos.ResponseStatus;
 import com.ecommerce.userservice.models.Token;
 import com.ecommerce.userservice.models.User;
 import com.ecommerce.userservice.services.UserService;
 import com.ecommerce.userservice.services.UserServiceImpl;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/users")
@@ -32,7 +32,7 @@ public class UserController {
     }
 
     @PostMapping("/signup")
-    public SignUpResponseDto signup(@RequestBody  SignUpRequestDto requestDto){
+    public SignUpResponseDto signup(@RequestBody  SignUpRequestDto requestDto) throws JsonProcessingException {
 
         User user = userService.signUp(requestDto.getName(), requestDto.getEmail(), requestDto.getPassword());
 
@@ -46,15 +46,29 @@ public class UserController {
     }
 
 
-    public UserDto validateToken(ValidateTokenDto validateTokenDto){
-        return null;
+    @GetMapping("/validate-token/{token}")
+    public UserDto validateToken(@PathVariable("token") String token){
+        User user = userService.validateToken(token);
+
+   return UserDto.fromUser(user);
+
 
     }
 
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(@RequestBody LogoutRequestDto logoutRequestDto){
+        ResponseEntity<Void> responseEntity = null;
+        try {
 
-    public ResponseEntity<Void> logout(LogoutRequestDto logoutRequestDto){
-        return null;
 
+            userService.logout(logoutRequestDto.getToken());
+            responseEntity = new ResponseEntity<>(HttpStatus.OK);
+        }
+        catch (Exception e){
+            responseEntity = new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+
+        return responseEntity;
     }
 
 }

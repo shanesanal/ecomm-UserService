@@ -1,12 +1,14 @@
 package com.ecommerce.userservice.services;
 
+import com.ecommerce.userservice.dtos.SendEmailDto;
 import com.ecommerce.userservice.models.Token;
 import com.ecommerce.userservice.models.User;
 import com.ecommerce.userservice.repositories.TokenRepository;
 import com.ecommerce.userservice.repositories.UserRepository;
-import lombok.Data;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang3.RandomStringUtils;
-import org.springframework.security.core.token.TokenService;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -22,15 +24,19 @@ public class UserServiceImpl implements UserService {
     private final UserRepository repository;
     private final BCryptPasswordEncoder bCryptPasswordEncoder;
     private final TokenRepository tokenRepository;
+    private KafkaTemplate<String,String> kafkaTemplate;
+    private ObjectMapper objectMapper;
 
-    public UserServiceImpl(UserRepository repository, BCryptPasswordEncoder bCryptPasswordEncoder, TokenRepository tokenRepository) {
+    public UserServiceImpl(UserRepository repository, BCryptPasswordEncoder bCryptPasswordEncoder, TokenRepository tokenRepository, KafkaTemplate kafkaTemplate, ObjectMapper objectMapper) {
         this.repository = repository;
         this.bCryptPasswordEncoder = bCryptPasswordEncoder;
         this.tokenRepository = tokenRepository;
+        this.kafkaTemplate = kafkaTemplate;
+        this.objectMapper = objectMapper;
     }
 
     @Override
-    public User signUp(String name, String email, String password) {
+    public User signUp(String name, String email, String password) throws JsonProcessingException {
         Optional<User> optionalUser = repository.findByEmail(email);
 
         User user = null;
@@ -46,6 +52,18 @@ public class UserServiceImpl implements UserService {
             user.setHashedPassword(bCryptPasswordEncoder.encode(password));
 
             user = repository.save(user);
+
+            /*
+            I want to publish this event to message queue
+             */
+            SendEmailDto sendEmailDto = new SendEmailDto();
+            sendEmailDto.setTo(email);
+            sendEmailDto.setSubject("signedup");
+            sendEmailDto.setBody("Welcome to our platform");
+            sendEmailDto.setFrom("shanemathewsanal@gmail.com");
+            kafkaTemplate.send("send-email",
+                    objectMapper.writeValueAsString(sendEmailDto));
+
 
 
         }
@@ -89,11 +107,26 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public User validateToken(String token) {
-        return null;
+       Optional<Token> optionalToken = tokenRepository.findByTokenAndDeletedAndExpiryAtGreaterThan(token, false, new Date());
+
+       if(optionalToken.isEmpty()){
+           return null;
+       }
+
+    return optionalToken.get().getUser();
+
     }
 
     @Override
-    public Void logout(String token) {
-        return null;
+    public void logout(String token) {
+        Optional<Token> optionalToken = tokenRepository.findByTokenAndDeleted(token, false);
+        if(optionalToken.isEmpty()){
+            //throw new TokenNotFoundException();
+        }
+
+        Token  token1 = optionalToken.get();
+        token1.setDeleted(true);
+        tokenRepository.save(token1);
+
     }
 }
