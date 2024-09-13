@@ -44,6 +44,11 @@ public class UserController {
 
 
     }
+    @GetMapping("/{id}")
+    public UserDto getUserDetails(@PathVariable("id") Long userId){
+        User user = userService.getUserDetails(userId);
+        return UserDto.fromUser(user);
+    }
 
 
     @GetMapping("/validate-token/{token}")

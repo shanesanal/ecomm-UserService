@@ -129,4 +129,13 @@ public class UserServiceImpl implements UserService {
         tokenRepository.save(token1);
 
     }
+
+    @Override
+    public User getUserDetails(Long userId) {
+        Optional<User> optionalUser = repository.findById(userId);
+        if(optionalUser.isEmpty()){
+            throw new RuntimeException("User not found");
+        }
+        return optionalUser.get();
+    }
 }
